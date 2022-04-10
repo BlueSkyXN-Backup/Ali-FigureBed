@@ -1,10 +1,5 @@
 <?php
-/**
- * 阿里图床上传
- * @author: 阿珏 (QQ群：712473912)
- * @link: http://www.52ecy.cn
- * @version: 1.1
- */
+
 
 $file = $_FILES['file'];
 if (is_uploaded_file($file['tmp_name'])){
@@ -16,15 +11,8 @@ if (is_uploaded_file($file['tmp_name'])){
 	}
 	$new_filename = time().rand(100,1000).'.'.$ext_suffix;
 	if (move_uploaded_file($file['tmp_name'], $new_filename)){
-		$data = upload('https://kfupload.alibaba.com/mupload',$new_filename);
-		$pattern = '/"url":"(.*?)"/';
-		preg_match($pattern, $data, $match);
-		@unlink($new_filename);
-		if($match && $match[1]!=''){
-			msg(['code'=> 0,'msg'=> $match[1]]);
-		}else{
-			msg(['code'=> 1,'msg'=> '上传失败']);
-		}
+		//$data = upload('https://kfupload.alibaba.com/mupload'
+		$data=upload($new_filename);
 	}else{
 		msg(['code'=> 1,'msg'=> '上传数据有误']);
 	}
@@ -33,34 +21,44 @@ if (is_uploaded_file($file['tmp_name'])){
 	msg(['code'=> 1,'msg'=> '上传数据有误']);
 }
 
+function upload($file_path)
+{
+    $url = 'https://kfupload.alibaba.com/kupload';
+    $data = [];
+    $data['scene'] = 'aeMessageCenterV2ImageRule';
+    $data['name'] = $file_path;
+    $data['file'] = new CURLFile(realpath($file_path));
 
-
-function upload($url,$file) {
-	return get_url($url,[
-		'scene' => 'aeMessageCenterV2ImageRule',
-		'name' =>$file,
-		'file' => new \CURLFile(realpath($file))
-	]);
-}
-
-
-function get_url($url,$post){
-	$ch = curl_init();
-	curl_setopt($ch,CURLOPT_HEADER, 0);
-	curl_setopt($ch, CURLOPT_URL,$url);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-	if($post){
-		curl_setopt($ch, CURLOPT_POST, 1);
-		curl_setopt($ch, CURLOPT_POSTFIELDS,$post);
-	}
-	if(curl_exec($ch) === false){
-	  echo 'Curl error: ' . curl_error($ch);
-	}
-	$result = curl_exec($ch);
-	curl_close($ch);
-	return $result;
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 120);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+    $hothead[] = "Accept:application/json";
+    $hothead[] = "Accept-Encoding:gzip,deflate,sdch";
+    $hothead[] = "Accept-Language:zh-CN,zh;q=0.8";
+    $hothead[] = "Connection:close";
+    $ip = mt_rand(48, 140) . "." . mt_rand(10, 240) . "." . mt_rand(10, 240) . "." . mt_rand(10, 240);
+    $hothead[] = 'CLIENT-IP:' . $ip;
+    $hothead[] = 'X-FORWARDED-FOR:' . $ip;
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $hothead);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Dalvik/2.1.0 (Linux; U; Android 10; ONEPLUS A5010 Build/QKQ1.191014.012)');
+    curl_setopt($ch, CURLOPT_ENCODING, "gzip");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    $html = @curl_exec($ch);
+    curl_close($ch);
+    //exit($html);
+    $json = @json_decode($html, true);
+    @unlink($file_path);
+    if ($json['code'] == '0') {
+        msg(['code'=> 0,'msg'=> $json['url']]);
+    }else{
+        msg(['code'=> 1,'msg'=> '上传失败']);
+    }
+    return ;
 }
 
 function msg($data){
